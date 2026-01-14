@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>北海道データマップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* 地図を画面いっぱいに広げる */
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+        
+        /* 吹き出し（ポップアップ）の中のデザイン */
+        .popup-content h3 {
+            margin: 0 0 5px 0;
+            color: #0078d4;
+            border-bottom: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // ---------------------------------------------------------
+        // ★ 1. ここが「エクセルのデータ」置き場です
+        // ---------------------------------------------------------
+        var excelData = {
+            "札幌市": { 
+                pop: "約195万人", 
+                memo: "北海道の政治・経済の中心地。雪まつりが有名。" 
+            },
+            "函館市": { 
+                pop: "約24万人", 
+                memo: "100万ドルの夜景。歴史的な建物が多い。" 
+            },
+            "小樽市": { 
+                pop: "約11万人", 
+                memo: "運河とガラス細工の街。" 
+            }
+            // ↑ここにカンマ区切りでデータを増やせます
+        };
+
+
+        // ---------------------------------------------------------
+        // ★ 2. 地図の基本設定（白地図）
+        // ---------------------------------------------------------
+        var map = L.map('map').setView([43.06417, 141.34694], 10);
+
+        // 背景を「白地図」に設定
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {
+            attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+        }).addTo(map);
+
+
+        // ---------------------------------------------------------
+        // ★ 3. 地図データ(json)を読み込んで合体！
+        // ---------------------------------------------------------
+        // ※もし読み込めない場合はファイル名(Hokkaido.json / hokkaido.json)を確認してください
+        fetch('public/Hokkaido1.json')
+            .then(response => {
+                if (!response.ok) throw new Error("ファイルが見つかりません");
+                return response.json();
+            })
+            .then(data => {
+                // ▼▼▼ あなたが探していた L.geoJSON はここにあります ▼▼▼
+                L.geoJSON(data, {
+                    
+                    // 色の設定（青色）
+                    style: { color: "blue", weight: 2, fillOpacity: 0.2 },
+                    
+                    // 各エリア（市町村）ごとの処理
+                    onEachFeature: function (feature, layer) {
+                        
+                        // 1. 地図データから「名前」を取り出す（例："札幌市"）
+                        // ※データによっては feature.properties.N03_004 の場合もあります
+                        var cityName = feature.properties.name; 
+
+                        // 2. その名前を使って、上の「excelData」から情報を探す
+                        var info = excelData[cityName];
+
+                        // 3. 吹き出しの中身を作る
+                        if (info) {
+                            // データが見つかった場合（リッチな表示）
+                            var content = `
+                                <div class="popup-content">
+                                    <h3>${cityName}</h3>
+                                    <p><b>人口:</b> ${info.pop}</p>
+                                    <p><b>メモ:</b> ${info.memo}</p>
+                                </div>
+                            `;
+                            layer.bindPopup(content);
+                        } else {
+                            // データがない場合（名前だけ表示）
+                            layer.bindPopup(`<h3>${cityName}</h3><p>詳細データなし</p>`);
+                        }
+                    }
+                }).addTo(map);
+                // ▲▲▲ L.geoJSON 終わり ▲▲▲
+            })
+            .catch(err => {
+                console.error(err);
+                alert("データの読み込みに失敗しました。ファイル名の大小文字などを確認してください。");
+            });
+    </script>
+</body>
+</html>
